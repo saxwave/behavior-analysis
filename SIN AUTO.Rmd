@@ -1,0 +1,117 @@
+---
+title: "SIN AUTO"
+author: "Dimitri Brunelle"
+date: "March 13, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+source("P:/ChBME-CSD GCHSR Walton-Lab/3. Lab Personnel Folders/Luis Franco/R data and Pictures/Scripts/Libraries.R")
+library(data.table)
+```
+
+```{r}
+SIN8K <- "P:/ChBME-CSD GCHSR Walton-Lab/1. Current Projects/Signal in Noise Testing/2 Mo. Females Screening with Control/8TP.csv"
+
+lines <- readLines(SIN8K)
+line.start <- grep('^Individual Trials', lines)
+lines.dat <- lines[-seq_len(line.start)]
+
+# get the data
+dat <- fread(text=lines.dat, header = TRUE)
+
+# cleanup the data
+dat <- dat[, .SD, .SDcols=grep('^V', names(dat), invert=T)]
+names(dat)[1] <- 'Intensity'
+
+# melt it
+mdat <- melt(dat, id.vars='Intensity')
+setnames(mdat, 'variable', 'animal.id')
+setnames(mdat, 'value', 'peak.V')
+
+
+
+# get N accepted startles
+Startles <- mdat[!is.na(peak.V), .N, by=animal.id]
+
+#get stats
+se <- function(x, na.rm=TRUE) {
+  if (na.rm == TRUE) {
+    x = na.omit(x)
+  }
+  sqrt(var(x)/length(x))
+}
+
+stats <- mdat[, .(mean.peak.V = mean(peak.V, na.rm=T), se.peak.V = se(peak.V, na.rm=T)), by=.(animal.id, Intensity)]
+
+stats[Intensity == 0, .(ref.V = mean.peak.V), by=.(animal.id)]
+
+ref.Vs <- stats[Intensity == 0, .(ref.V = mean.peak.V), by=.(animal.id)]
+
+new.stats <- merge(stats, ref.Vs)
+
+new.stats[, (1 - mean.peak.V)/Intensity[0]*100, by=.(animal.id)]
+
+new.stats[, (1 - mean.peak.V/ref.V)*100, by=.(animal.id)]
+
+new.stats[Intensity != 0, (1 - mean.peak.V/ref.V)*100, by=.(animal.id, Intensity)]
+
+best.stats <- new.stats[Intensity !=0, .(Percent.Inhibition = (1 - mean.peak.V/ref.V)*100), by=.(animal.id, Intensity, se.peak.V)]
+```
+
+```{r}
+install.packages("reader")
+library("reader")
+```
+
+```{r}
+SIN8K <- "P:/ChBME-CSD GCHSR Walton-Lab/1. Current Projects/Signal in Noise Testing/2 Mo. Females Screening with Control/8TP.csv"
+
+lines <- readLines(SIN8K)
+line.start <- grep('^Individual Trials', lines)
+lines.dat <- lines[-seq_len(line.start)]
+
+# get the data
+dat <- fread(text=lines.dat, header = TRUE)
+
+# cleanup the data
+dat <- dat[, .SD, .SDcols=grep('^V', names(dat), invert=T)]
+names(dat)[1] <- 'Intensity'
+
+# melt it
+mdat <- melt(dat, id.vars='Intensity')
+setnames(mdat, 'variable', 'animal.id')
+setnames(mdat, 'value', 'peak.V')
+
+# get N accepted startles
+Startles <- mdat[!is.na(peak.V), .N, by=animal.id]
+
+#get stats
+se <- function(x, na.rm=TRUE) {
+  if (na.rm == TRUE) {
+    x = na.omit(x)
+  }
+  sqrt(var(x)/length(x))
+}
+
+stats <- mdat[, .(mean.peak.V = mean(peak.V, na.rm=T), se.peak.V = se(peak.V, na.rm=T)), by=.(animal.id, Intensity)]
+
+stats[Intensity == 0, .(ref.V = mean.peak.V), by=.(animal.id)]
+
+ref.Vs <- stats[Intensity == 0, .(ref.V = mean.peak.V), by=.(animal.id)]
+
+new.stats <- merge(stats, ref.Vs)
+
+new.stats[, (1 - mean.peak.V)/Intensity[0]*100, by=.(animal.id)]
+
+new.stats[, (1 - mean.peak.V/ref.V)*100, by=.(animal.id)]
+
+new.stats[Intensity != 0, (1 - mean.peak.V/ref.V)*100, by=.(animal.id, Intensity)]
+
+best.stats <- new.stats[Intensity !=0, .(Percent.Inhibition = (1 - mean.peak.V/ref.V)*100), by=.(animal.id, Intensity, se.peak.V)]
+```
+
