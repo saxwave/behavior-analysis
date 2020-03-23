@@ -1,0 +1,78 @@
+---
+title: "SIN with CONTROL"
+author: "Dimitri Brunelle"
+date: "March 23, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load in packages.
+if (!require(tidyverse)) install.packages('tidyverse')
+if (!require(data.table)) install.packages('data.table')
+if (!require(kableExtra)) install.packages('kableExtra')
+if (!require(ggplot2)) install.packages('ggplot2')
+if (!require(plotly)) install.packages('plotly')
+if (!require(dplyr)) install.packages('dplyr')
+
+for(pkg in c('tidyverse', 'data.table', 'kableExtra', 'ggplot2', 'plotly', 'dplyr')){
+  eval(bquote(library(.(pkg))))
+}
+
+# Set working directory to wherever you have the .csv files stored.
+setwd("C:/Users/Dimitri Brunelle/Documents/R/Signal in Noise Testing")
+```
+
+```{r}
+# Read in the data. Then get what we care about - the averaged % Inhibitions across sessions. Also label columns correctly.
+TPPI8KSINF2 <- fread("C:/Users/Dimitri Brunelle/Documents/R/Signal in Noise Testing/2 Mo. F Control/8TP.csv")
+Inhib.8KSINF2 <- TPPI8KSINF2[c(13:19, 22:28), c(1:4)]
+names(Inhib.8KSINF2)[1:4] <- c("PrePulse.Intensity", "1757", "1758", "1759")
+Inhib.8KSINF2 <- subset(Inhib.8KSINF2, PrePulse.Intensity!="Percent Inhibition")
+
+# Get accepted startle rates.
+SR.8KSINF2 <- TPPI8KSINF2[c(31:37), c(1, 14:16)]
+names(SR.8KSINF2)[1:4]<-c("PrePulse.Intensity", "1757", "1758", "1759")
+SR.8KSINF2<- subset(SR.8KSINF2, PrePulse.Intensity!="Percent Inhibition")
+```
+
+```{r}
+# Melt data tables. Now each row will become an observation, and each column a variable (For visualization purposes). Convert to numeric.
+Inhib.8KSINF2_melted <- melt(Inhib.8KSINF2, id=1, variable.name="Mouse", value.name="Percent.Inhibition")
+Inhib.8KSINF2_melted$Percent.Inhibition <- as.numeric(Inhib.8KSINF2_melted$Percent.Inhibition)
+
+SR.8KSINF2_melted <- melt(SR.8KSINF2, id=1, variable.name ="Mouse", value.name="Startle.Rate")
+SR.8KSINF2_melted$Startle.Rate <- as.numeric(SR.8KSINF2_melted$Startle.Rate)
+```
+
+```{r fig.width=10, fig.height=6}
+# Graph % Inhibition.
+g <- ggplot(Inhib.8KSINF2_melted, aes(PrePulse.Intensity, Percent.Inhibition, color=I("#000000"), fill=PrePulse.Intensity))
+g <- g + stat_summary(fun.data= mean_se, geom="errorbar", position=position_dodge(), size=1.25, width=.5)
+g <- g + stat_summary(fun.y=mean, geom="bar", position=position_dodge(), size=1.25, width=.85)
+g <- g + scale_fill_brewer(palette ="Greys")
+g <- g + coord_cartesian(ylim=c(0,100))
+g <- g + scale_x_discrete(labels = c("0", "60", "63", "66", "69", "72"))
+g <- g + scale_y_continuous(breaks=seq(0,100,10), expand=c(0,0))
+g <- g + guides(color=FALSE, fill=F)
+g <- g + theme_classic()
+g <- g + facet_wrap(~Mouse)
+g <- g + labs(x="Pre-Pulse Intensity (dB)", y="% Inhibition", title="TPPI 8KSIN")
+g <- g + geom_text(data=SR.8KSINF2_melted, aes(PrePulse.Intensity, Startle.Rate, label=Startle.Rate), color="#000000", size=4, fontface="bold" )
+g <- g + theme(
+axis.text.x = element_text(face = "bold", color = "#000000", size = 14, angle = 45, hjust = 1),
+axis.text.y = element_text(face = "bold", color = "#000000", size = 14, angle = 0),
+strip.text.x = element_text(face = "bold", color = "#000000", size = 14, angle = 0),
+strip.background = element_rect(size=1.5),
+plot.title = element_text(hjust = 0.5, color="black", size=14, face="bold"),
+axis.title.x = element_text(color="black", size=14, face="bold"),
+axis.title.y = element_text(color="black", size=14, face="bold", vjust = 1.5),
+axis.line = element_line(color = "#000000", size = 1, linetype = "solid"),
+axis.ticks.length = unit(.2, "cm"),
+axis.ticks = element_line(color = "black", size = 1.25),
+axis.ticks.margin = unit(1, "cm"))
+g
+```
